@@ -40,6 +40,12 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 - 导出 MP4 需要 `ffmpeg` 在 `PATH` 中。
 - AI 扒谱需要 Python 3.10+，并安装本项目 Python 版或 basic-pitch（可选）。
 
+## 下载（Windows 免安装）
+
+GitHub Releases 提供 `PianoWaterfall-windows-x64-1.3.1.zip`，解压后直接运行
+`PianoWaterfall.exe`。压缩包内置 Java 运行时与 26 个钢琴采样，无需安装 JDK；
+MP4 导出仍需本机 `ffmpeg`（程序会自动查找 PATH 与 WinGet 安装目录）。
+
 ## 构建与运行
 
 ```bash
