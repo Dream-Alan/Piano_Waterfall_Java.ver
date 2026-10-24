@@ -140,7 +140,7 @@ public class App extends Application {
 
         dock = buildFloatingDock();
         StackPane.setAlignment(dock, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(dock, new Insets(0, 40, 200, 40));
+        StackPane.setMargin(dock, new Insets(0, 40, 180, 40));
 
         root = new StackPane(canvas, dock);
         root.setStyle("-fx-background-color: #07090E;");
@@ -332,7 +332,7 @@ public class App extends Application {
         voiceCombo = new ComboBox<>(FXCollections.observableArrayList(PianoVoice.values()));
         voiceCombo.setValue(PianoVoice.GRAND);
         voiceCombo.setPrefWidth(172);
-        voiceCombo.setVisibleRowCount(4);
+        voiceCombo.setVisibleRowCount(3);
         voiceCombo.setPrefHeight(32);
         voiceCombo.setStyle("-fx-background-color: #0E2230; -fx-text-fill: #EAF6FF;"
                 + " -fx-border-color: #00F0FF; -fx-border-width: 1.4;"
