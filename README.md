@@ -14,9 +14,10 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
   触键粒子爆发、长音持续火星、呼吸判定线。
 - **可视化 HUD**：曲名、主题、时间 / 总时长 / 百分比、活跃音符数、实时 FPS。
 - **底部悬浮控制坞**：播放 / 暂停、可拖动进度条、重播、打开 MIDI、简谱工坊、
-  音频转 MIDI、原曲、主题、标注、导出 MP4、下落速度、音色；鼠标静止 1.6 秒自动淡出。
+  音频转 MIDI、原曲、主题、标注、导出 MP4、下落速度、音色、自动播放；鼠标静止 1.6 秒自动淡出。
 - **4 套主题**：赛博青粉、极光翠绿、鎏金琥珀、星光樱粉，按 `T` 循环切换。
 - **简谱工坊**：双轨简谱文本、调号 C–B、BPM，一键编译成 MIDI 并立即播放；支持导入 `.jianpu` 文件、导出 `.mid`。
+- **自动播放开关**：默认关闭，打开曲目后停在 0 秒；点亮「自动播放」后开始播放，并对之后打开的曲目自动播放。
 - **采样钢琴音色**：内置 26 个真实钢琴采样与 5 种音色（音乐会三角、明亮流行、
   毛毡柔音、复古立式、房间混响），首次切换需后台渲染 1–2 秒，渲染完成后自动继承当前位置切到新音色。
 - **原曲同步**：加载 MP3 / WAV 作为主时钟，与 MIDI 音符同步；`M` 可静音 MIDI
@@ -42,7 +43,7 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 
 ## 下载（Windows 免安装）
 
-GitHub Releases 提供 `PianoWaterfall-windows-x64-1.3.3.zip`，解压后直接运行
+GitHub Releases 提供 `PianoWaterfall-windows-x64-1.3.4.zip`，解压后直接运行
 `PianoWaterfall.exe`。压缩包内置 Java 运行时与 26 个钢琴采样，无需安装 JDK；
 MP4 导出仍需本机 `ffmpeg`（程序会自动查找 PATH 与 WinGet 安装目录）。
 
@@ -62,7 +63,7 @@ mvn org.openjfx:javafx-maven-plugin:0.0.8:run
 ```bash
 mvn -q package
 java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
-  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.3.jar;$(cat cp.txt)" \
+  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.4.jar;$(cat cp.txt)" \
   com.piano.waterfall.Launcher
 ```
 
@@ -88,7 +89,7 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 「简谱工坊」里可直接导入 `.jianpu` 文件并导出 MIDI，也可以用命令行批处理：
 
 ```bash
-java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.3.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
+java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.4.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
 ```
 
 文件格式：
@@ -175,6 +176,7 @@ pip install basic-pitch
 | `-Dpiano.theme=CYBERPUNK` | 启动主题：`CYBERPUNK` / `AURORA` / `GOLDEN` / `SAKURA` |
 | `-Dpiano.audio=path.wav` | 启动时加载原曲并与 MIDI 同步 |
 | `-Dpiano.snapshot=out.png` | 启动 12 秒后保存整窗截图并退出（CI/文档） |
+| `-Dpiano.autoplay=true` | 打开曲目后自动播放（默认关闭） |
 | `-Dpiano.export=out.mp4` | 启动 2 秒后自动导出并退出（需要 ffmpeg） |
 | `-Dpiano.python=python.exe` | AI 扒谱使用的 Python 解释器 |
 | `-Dpiano.pythonProject=path` | `piano_waterfall` 项目根目录（加入 `PYTHONPATH`） |

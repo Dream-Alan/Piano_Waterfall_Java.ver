@@ -6,7 +6,7 @@
 
     <groupId>com.piano</groupId>
     <artifactId>Piano_Waterfall_Java.ver</artifactId>
-    <version>1.3.3</version>
+    <version>1.3.4</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

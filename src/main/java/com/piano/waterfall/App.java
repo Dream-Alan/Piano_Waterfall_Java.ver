@@ -33,6 +33,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Slider;
+import javafx.scene.control.ToggleButton;
 import javafx.collections.FXCollections;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelFormat;
@@ -98,6 +99,9 @@ public class App extends Application {
     private Slider timeline;
     private Label timeLabel;
     private Button playButton;
+    private ToggleButton autoplayButton;
+    private boolean autoplayEnabled = Boolean.parseBoolean(
+            System.getProperty("piano.autoplay", "false"));
     private Button themeButton;
     private Button audioButton;
     private Button aiButton;
@@ -347,6 +351,19 @@ public class App extends Application {
         voiceCombo.setTooltip(new Tooltip("切换钢琴音色（后台采样渲染）"));
         voiceCombo.setOnAction(event -> renderSampledPiano());
 
+        autoplayButton = new ToggleButton();
+        autoplayButton.setSelected(autoplayEnabled);
+        autoplayButton.setOnAction(event -> {
+            autoplayEnabled = autoplayButton.isSelected();
+            refreshAutoplayButton();
+            if (autoplayEnabled && audioEngine.isPaused()) {
+                audioEngine.togglePause();
+                refreshPlayButton();
+            }
+            showDock();
+        });
+        refreshAutoplayButton();
+
         FlowPane controls = new FlowPane(8, 7);
         controls.setAlignment(Pos.CENTER);
         controls.getChildren().addAll(playButton, restartButton, midiButton, jianpuButton,
@@ -357,7 +374,7 @@ public class App extends Application {
         hintLabel.setStyle("-fx-text-fill: #5E7188; -fx-font-size: 10px;");
 
         Region footerSpacer = new Region();
-        HBox footer = new HBox(8, voiceLabel, voiceCombo, footerSpacer, hintLabel);
+        HBox footer = new HBox(8, voiceLabel, voiceCombo, autoplayButton, footerSpacer, hintLabel);
         footer.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
@@ -482,6 +499,24 @@ public class App extends Application {
         return button;
     }
 
+    private void refreshAutoplayButton() {
+        if (autoplayButton == null) {
+            return;
+        }
+        boolean on = autoplayButton.isSelected();
+        autoplayButton.setText(on ? "▶ 自动播放：开" : "自动播放：关");
+        String color = on ? "#00FF9D" : "#8FA3BA";
+        String background = on ? "rgba(0,255,157,0.16)" : "#151D2C";
+        autoplayButton.setStyle("-fx-background-color: " + background + ";"
+                + "-fx-text-fill: " + color + "; -fx-font-weight: bold;"
+                + "-fx-font-size: 11px; -fx-background-radius: 7;"
+                + "-fx-border-color: " + color + "; -fx-border-radius: 7;"
+                + "-fx-border-width: 0.9; -fx-padding: 5 10; -fx-cursor: hand;");
+        autoplayButton.setTooltip(new Tooltip(on
+                ? "打开新曲目时自动播放"
+                : "打开曲目后停在 0 秒，按空格或播放开始"));
+    }
+
     private String neonSliderStyle(String color) {
         return "-fx-control-inner-background: #151D2C; -fx-accent: " + color + ";";
     }
@@ -537,7 +572,11 @@ public class App extends Application {
         if (companionAudio != null) {
             this.audioEngine.attachExternalAudio(companionAudio, true);
         }
-        this.audioEngine.start();
+        if (autoplayEnabled) {
+            this.audioEngine.start();
+        } else {
+            this.audioEngine.startPaused();
+        }
         refreshAudioButton();
         refreshPlayButton();
         if (stage != null) {

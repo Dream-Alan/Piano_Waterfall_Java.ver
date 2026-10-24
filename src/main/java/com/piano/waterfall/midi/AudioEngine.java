@@ -161,6 +161,22 @@ public class AudioEngine {
         }
     }
 
+    /** 加载后停在 0 秒，等待用户按播放或打开自动播放开关。 */
+    public void startPaused() {
+        leadInStartNano = System.nanoTime();
+        pausedTimeSec = 0.0;
+        audioStarted = true;
+        paused = true;
+        if (externalAudioPlayer != null) {
+            externalAudioPlayer.stop();
+            externalAudioPlayer.seek(Duration.ZERO);
+        }
+        if (sampledPianoPlayer != null) {
+            sampledPianoPlayer.stop();
+            sampledPianoPlayer.seek(Duration.ZERO);
+        }
+    }
+
     /**
      * 当前播放时间（秒）。前导阶段返回负数。
      */
