@@ -14,14 +14,19 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
   触键粒子爆发、长音持续火星、呼吸判定线。
 - **可视化 HUD**：曲名、主题、时间 / 总时长 / 百分比、活跃音符数、实时 FPS。
 - **底部悬浮控制坞**：播放 / 暂停、可拖动进度条、重播、打开 MIDI、简谱工坊、
-  音频转 MIDI、原曲、主题、标注、导出 MP4、下落速度；鼠标静止 3 秒自动淡出。
+  音频转 MIDI、原曲、主题、标注、导出 MP4、下落速度、音色；鼠标静止 1.6 秒自动淡出。
 - **4 套主题**：赛博青粉、极光翠绿、鎏金琥珀、星光樱粉，按 `T` 循环切换。
 - **简谱工坊**：双轨简谱文本、调号 C–B、BPM，一键编译成 MIDI 并立即播放；支持导入 `.jianpu` 文件、导出 `.mid`。
+- **采样钢琴音色**：内置 26 个真实钢琴采样与 5 种音色（音乐会三角、明亮流行、
+  毛毡柔音、复古立式、房间混响），首次渲染后缓存，切换音色不会中断播放。
 - **原曲同步**：加载 MP3 / WAV 作为主时钟，与 MIDI 音符同步；`M` 可静音 MIDI
   合成器只听原曲。
 - **AI 扒谱**：调用本地 Python 的 hFT / CRNN 转录，或 basic-pitch、
   `piano_transcription_inference`，生成 MIDI 后自动载入。
-- **MP4 导出**：固定 1/60 秒步长离线渲染，需要本机 `ffmpeg`。
+- **MP4 导出**：固定 1/60 秒步长离线渲染，需要本机 `ffmpeg`；会依次查找 `PATH`、
+  WinGet 安装目录，也可用 `-Dpiano.ffmpeg=<ffmpeg.exe>` 显式指定。
+- **采样缓存**：采样钢琴 WAV 缓存在 `%LOCALAPPDATA%\PianoWaterfall\java-sample-cache`，
+  不可写时回退到系统临时目录。
 
 ## 环境
 
@@ -46,7 +51,7 @@ mvn org.openjfx:javafx-maven-plugin:0.0.8:run
 ```bash
 mvn -q package
 java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
-  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.2.0.jar;$(cat cp.txt)" \
+  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.0.jar;$(cat cp.txt)" \
   com.piano.waterfall.Launcher
 ```
 
@@ -72,7 +77,7 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 「简谱工坊」里可直接导入 `.jianpu` 文件并导出 MIDI，也可以用命令行批处理：
 
 ```bash
-java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.2.0.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
+java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.0.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
 ```
 
 文件格式：

@@ -27,6 +27,7 @@ public class AudioEngine {
     private Synthesizer synthesizer;
     private Sequence sequence;
     private MediaPlayer externalAudioPlayer;
+    private MediaPlayer sampledPianoPlayer;
     private boolean muteMidiSynth;
 
     private long leadInStartNano;
@@ -69,6 +70,9 @@ public class AudioEngine {
      */
     public void attachExternalAudio(File audioFile, boolean muteMidiWhenPlayingAudio) {
         disposeExternalAudio();
+        if (audioFile != null) {
+            disposeSampledPiano();
+        }
         muteMidiSynth = false;
         if (audioFile != null && audioFile.isFile()) {
             try {
@@ -83,6 +87,35 @@ public class AudioEngine {
             }
         }
         applyMidiMuteState();
+    }
+
+    /**
+     * 挂载离线渲染的采样钢琴 WAV，作为主时钟并静音 MIDI 合成器。
+     */
+    public void attachSampledPiano(File wav) {
+        disposeSampledPiano();
+        if (wav == null || !wav.isFile()) {
+            return;
+        }
+        try {
+            Media media = new Media(wav.toURI().toString());
+            sampledPianoPlayer = new MediaPlayer(media);
+            sampledPianoPlayer.setOnError(() ->
+                    System.err.println("采样钢琴错误: " + sampledPianoPlayer.getError()));
+            muteMidiSynth = true;
+            applyMidiMuteState();
+        } catch (Exception exception) {
+            System.err.println("无法加载采样钢琴: " + exception.getMessage());
+            sampledPianoPlayer = null;
+        }
+    }
+
+    public boolean hasSampledPiano() {
+        return sampledPianoPlayer != null;
+    }
+
+    public void detachSampledPiano() {
+        disposeSampledPiano();
     }
 
     public boolean hasExternalAudio() {
@@ -122,6 +155,10 @@ public class AudioEngine {
             externalAudioPlayer.stop();
             externalAudioPlayer.seek(Duration.ZERO);
         }
+        if (sampledPianoPlayer != null) {
+            sampledPianoPlayer.stop();
+            sampledPianoPlayer.seek(Duration.ZERO);
+        }
     }
 
     /**
@@ -154,6 +191,13 @@ public class AudioEngine {
                 return mediaSec;
             }
         }
+        if (sampledPianoPlayer != null
+                && sampledPianoPlayer.getStatus() == MediaPlayer.Status.PLAYING) {
+            double mediaSec = sampledPianoPlayer.getCurrentTime().toSeconds();
+            if (mediaSec > 0.01) {
+                return mediaSec;
+            }
+        }
         if (sequencer == null) {
             return pausedTimeSec;
         }
@@ -173,6 +217,9 @@ public class AudioEngine {
                 }
                 if (externalAudioPlayer != null) {
                     externalAudioPlayer.pause();
+                }
+                if (sampledPianoPlayer != null) {
+                    sampledPianoPlayer.pause();
                 }
                 silenceAllChannels();
             }
@@ -205,6 +252,9 @@ public class AudioEngine {
         pausedTimeSec = targetMicros / 1_000_000.0;
         if (externalAudioPlayer != null) {
             externalAudioPlayer.seek(Duration.seconds(pausedTimeSec));
+        }
+        if (sampledPianoPlayer != null) {
+            sampledPianoPlayer.seek(Duration.seconds(pausedTimeSec));
         }
         if (!paused) {
             if (!sequencer.isRunning() && targetMicros < maxMicros) {
@@ -247,18 +297,39 @@ public class AudioEngine {
                 duration = Math.max(duration, mediaDuration.toSeconds());
             }
         }
+        if (sampledPianoPlayer != null) {
+            Duration mediaDuration = sampledPianoPlayer.getTotalDuration();
+            if (mediaDuration != null) {
+                duration = Math.max(duration, mediaDuration.toSeconds());
+            }
+        }
         return duration;
     }
 
     private void startExternalAudio(double seconds) {
-        if (externalAudioPlayer == null) {
-            return;
+        if (externalAudioPlayer != null) {
+            try {
+                externalAudioPlayer.seek(Duration.seconds(Math.max(0.0, seconds)));
+                externalAudioPlayer.play();
+            } catch (Exception exception) {
+                System.err.println("原曲音频播放失败: " + exception.getMessage());
+            }
         }
-        try {
-            externalAudioPlayer.seek(Duration.seconds(Math.max(0.0, seconds)));
-            externalAudioPlayer.play();
-        } catch (Exception exception) {
-            System.err.println("原曲音频播放失败: " + exception.getMessage());
+        if (sampledPianoPlayer != null) {
+            try {
+                sampledPianoPlayer.seek(Duration.seconds(Math.max(0.0, seconds)));
+                sampledPianoPlayer.play();
+            } catch (Exception exception) {
+                System.err.println("采样钢琴播放失败: " + exception.getMessage());
+            }
+        }
+    }
+
+    private void disposeSampledPiano() {
+        if (sampledPianoPlayer != null) {
+            sampledPianoPlayer.stop();
+            sampledPianoPlayer.dispose();
+            sampledPianoPlayer = null;
         }
     }
 
@@ -288,6 +359,7 @@ public class AudioEngine {
     public void stop() {
         silenceAllChannels();
         disposeExternalAudio();
+        disposeSampledPiano();
         if (sequencer != null && sequencer.isOpen()) {
             sequencer.close();
         }

@@ -4,6 +4,8 @@ import com.piano.waterfall.export.VideoExporter;
 import com.piano.waterfall.midi.AudioEngine;
 import com.piano.waterfall.midi.AudioTranscriber;
 import com.piano.waterfall.midi.MidiParser;
+import com.piano.waterfall.midi.PianoVoice;
+import com.piano.waterfall.midi.SampledPianoEngine;
 import com.piano.waterfall.midi.ScoreCompiler;
 import com.piano.waterfall.model.KeyGeometry;
 import com.piano.waterfall.model.NoteBlock;
@@ -23,16 +25,19 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Slider;
+import javafx.collections.FXCollections;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -84,6 +89,8 @@ public class App extends Application {
     private boolean exporting;
     private boolean exitAfterExport;
     private boolean snapshotMode;
+    private double lastMouseX = Double.NaN;
+    private double lastMouseY = Double.NaN;
 
     private VBox dock;
     private Slider timeline;
@@ -92,6 +99,8 @@ public class App extends Application {
     private Button themeButton;
     private Button audioButton;
     private Button aiButton;
+    private ComboBox<PianoVoice> voiceCombo;
+    private int sampleRenderGeneration;
     private PauseTransition idleTimer;
     private FadeTransition fadeOut;
     private boolean draggingTimeline;
@@ -157,7 +166,6 @@ public class App extends Application {
         }
 
         scene.setOnKeyPressed(this::handleKey);
-        scene.setOnMouseMoved(event -> showDock());
         scene.setOnDragOver(event -> {
             if (event.getDragboard().hasFiles()) {
                 event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
@@ -313,6 +321,15 @@ public class App extends Application {
         speedSlider.valueProperty().addListener((obs, oldValue, newValue) ->
                 renderer.setFallSpeed(newValue.doubleValue()));
 
+        Label voiceLabel = new Label("音色");
+        voiceLabel.setStyle("-fx-text-fill: #8FA3BA; -fx-font-size: 11px;");
+        voiceCombo = new ComboBox<>(FXCollections.observableArrayList(PianoVoice.values()));
+        voiceCombo.setValue(PianoVoice.GRAND);
+        voiceCombo.setPrefWidth(122);
+        voiceCombo.setStyle("-fx-background-color: #0D141E; -fx-text-fill: #DCE2EC;"
+                + " -fx-border-color: #1D2A3A; -fx-border-radius: 12; -fx-background-radius: 12;");
+        voiceCombo.setOnAction(event -> renderSampledPiano());
+
         FlowPane controls = new FlowPane(8, 7);
         controls.setAlignment(Pos.CENTER);
         controls.getChildren().addAll(playButton, restartButton, midiButton, jianpuButton,
@@ -322,9 +339,10 @@ public class App extends Application {
         Label hintLabel = new Label("T 主题 · L 标注 · M 静音MIDI · J 简谱工坊 · 右键 AI 设置 Python · E 导出");
         hintLabel.setStyle("-fx-text-fill: #5E7188; -fx-font-size: 10px;");
 
-        HBox footer = new HBox(10, new Label(""), hintLabel);
+        Region footerSpacer = new Region();
+        HBox footer = new HBox(8, footerSpacer, hintLabel, voiceLabel, voiceCombo);
         footer.setAlignment(Pos.CENTER_RIGHT);
-        HBox.setHgrow(footer.getChildren().get(0), Priority.ALWAYS);
+        HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
         dockBox.getChildren().addAll(progressRow, controls, footer);
         dockBox.setOnMouseEntered(event -> {
@@ -342,16 +360,28 @@ public class App extends Application {
     }
 
     private void setupAutoHideDock(Scene scene) {
-        fadeOut = new FadeTransition(Duration.millis(420), dock);
+        fadeOut = new FadeTransition(Duration.millis(320), dock);
         fadeOut.setToValue(0.0);
-        idleTimer = new PauseTransition(Duration.seconds(3.2));
+        idleTimer = new PauseTransition(Duration.seconds(1.6));
         idleTimer.setOnFinished(event -> {
             if (!dock.isHover() && !snapshotMode) {
                 fadeOut.playFromStart();
             }
         });
-        scene.setOnMouseMoved(event -> showDock());
+        scene.setOnMouseMoved(this::handleMouseMoved);
         idleTimer.playFromStart();
+    }
+
+    private void handleMouseMoved(MouseEvent event) {
+        double x = event.getSceneX();
+        double y = event.getSceneY();
+        if (Double.isNaN(lastMouseX)
+                || Math.abs(x - lastMouseX) > 2.0
+                || Math.abs(y - lastMouseY) > 2.0) {
+            lastMouseX = x;
+            lastMouseY = y;
+            showDock();
+        }
     }
 
     private void showDock() {
@@ -481,6 +511,52 @@ public class App extends Application {
         if (stage != null) {
             stage.setTitle("Piano Waterfall Java  |  " + title);
         }
+        renderSampledPiano();
+    }
+
+    private void renderSampledPiano() {
+        if (sequence == null || notes == null || notes.isEmpty() || currentAudio != null) {
+            return;
+        }
+        PianoVoice voice = voiceCombo == null ? PianoVoice.GRAND : voiceCombo.getValue();
+        if (voice == null) {
+            voice = PianoVoice.GRAND;
+        }
+        final PianoVoice selectedVoice = voice;
+        final String cacheKey = songTitle + "|" + sequence.getMicrosecondLength()
+                + "|" + notes.size();
+        final int generation = ++sampleRenderGeneration;
+        double resume = audioEngine.getCurrentTimeSec();
+        Thread worker = new Thread(() -> {
+            try {
+                File wav = SampledPianoEngine.render(cacheKey, notes, selectedVoice,
+                        percent -> Platform.runLater(() -> {
+                            if (generation == sampleRenderGeneration && stage != null) {
+                                stage.setTitle(String.format("采样钢琴 · %s · %d%%  |  %s",
+                                        selectedVoice.label(), Math.round(percent), songTitle));
+                            }
+                        }));
+                Platform.runLater(() -> {
+                    if (generation != sampleRenderGeneration) {
+                        return;
+                    }
+                    audioEngine.attachSampledPiano(wav);
+                    audioEngine.seekToSeconds(Math.max(0.0, resume));
+                    if (stage != null) {
+                        stage.setTitle("Piano Waterfall Java  |  " + songTitle);
+                    }
+                });
+            } catch (Exception exception) {
+                Platform.runLater(() -> {
+                    if (generation == sampleRenderGeneration && stage != null) {
+                        stage.setTitle("Piano Waterfall Java  |  " + songTitle);
+                    }
+                    System.err.println("采样钢琴渲染失败: " + exception.getMessage());
+                });
+            }
+        }, "sample-piano-render");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     private void handleKey(KeyEvent event) {

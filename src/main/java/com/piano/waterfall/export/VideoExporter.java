@@ -26,6 +26,9 @@ import javax.sound.sampled.AudioSystem;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
@@ -56,8 +59,8 @@ public final class VideoExporter {
     public static void exportMp4Async(Stage stage, Canvas canvas, WaterfallRenderer renderer,
                                       Sequence sequence, List<NoteBlock> notes,
                                       File soundFont, File outputMp4, Runnable onFinished) {
-        final int width = (int) canvas.getWidth();
-        final int height = (int) canvas.getHeight();
+        final int width = Math.max(2, ((int) canvas.getWidth()) & ~1);
+        final int height = Math.max(2, ((int) canvas.getHeight()) & ~1);
         final double maxNoteEnd = notes.stream()
                 .mapToDouble(NoteBlock::endTime)
                 .max()
@@ -73,7 +76,7 @@ public final class VideoExporter {
             renderMidiToWav(sequence, soundFont, LEAD_IN_SEC, totalDurationSec, tempWav);
 
             ProcessBuilder builder = new ProcessBuilder(
-                    "ffmpeg", "-y",
+                    ffmpegExecutable(), "-y",
                     "-f", "rawvideo",
                     "-pix_fmt", "bgra",
                     "-s", width + "x" + height,
@@ -140,6 +143,47 @@ public final class VideoExporter {
                 onFinished.run();
             }
         }
+    }
+
+
+    private static String ffmpegExecutable() {
+        String explicit = System.getProperty("piano.ffmpeg");
+        if (explicit != null && !explicit.isBlank() && new File(explicit).canExecute()) {
+            return explicit;
+        }
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null) {
+            for (String dir : pathEnv.split(File.pathSeparator)) {
+                File candidate = new File(dir, "ffmpeg.exe");
+                if (candidate.canExecute()) {
+                    return candidate.getAbsolutePath();
+                }
+            }
+        }
+        String localAppData = System.getenv("LOCALAPPDATA");
+        if (localAppData != null) {
+            Path packages = Path.of(localAppData, "Microsoft", "WinGet", "Packages");
+            if (Files.isDirectory(packages)) {
+                try (Stream<Path> stream = Files.walk(packages, 6)) {
+                    var found = stream
+                            .filter(p -> p.getFileName().toString().equals("ffmpeg.exe"))
+                            .findFirst();
+                    if (found.isPresent()) {
+                        return found.get().toAbsolutePath().toString();
+                    }
+                } catch (IOException ignored) {
+                    // fall through to PATH lookup
+                }
+            }
+        }
+        for (String candidate : new String[]{
+                "C:/ffmpeg/bin/ffmpeg.exe",
+                "C:/Program Files/ffmpeg/bin/ffmpeg.exe"}) {
+            if (new File(candidate).canExecute()) {
+                return candidate;
+            }
+        }
+        return "ffmpeg";
     }
 
     private static void finishExport(OutputStream stdin, Process process, File tempWav,

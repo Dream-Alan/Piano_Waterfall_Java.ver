@@ -1,6 +1,8 @@
 package com.piano.waterfall;
 
 import com.piano.waterfall.midi.MidiParser;
+import com.piano.waterfall.midi.PianoVoice;
+import com.piano.waterfall.midi.SampledPianoEngine;
 import com.piano.waterfall.midi.ScoreCompiler;
 import com.piano.waterfall.model.KeyGeometry;
 import com.piano.waterfall.model.NoteBlock;
@@ -8,6 +10,8 @@ import com.piano.waterfall.render.WaterfallRenderer;
 import org.junit.jupiter.api.Test;
 
 import javax.sound.midi.MetaMessage;
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioSystem;
 import javax.sound.midi.MidiSystem;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
@@ -141,6 +145,18 @@ class CoreTest {
         assertEquals(WaterfallRenderer.Theme.GOLDEN, renderer.nextTheme());
         assertEquals(WaterfallRenderer.Theme.SAKURA, renderer.nextTheme());
         assertEquals(WaterfallRenderer.Theme.CYBERPUNK, renderer.nextTheme());
+    }
+
+    @Test
+    void rendersSampledPianoWav() throws Exception {
+        List<NoteBlock> notes = List.of(
+                new NoteBlock(60, 0.0, 0.5, 90),
+                new NoteBlock(64, 0.25, 0.5, 80));
+        File wav = SampledPianoEngine.render("unit-voice", notes, PianoVoice.GRAND, percent -> { });
+        assertTrue(wav.isFile() && wav.length() > 10_000);
+        AudioFileFormat format = AudioSystem.getAudioFileFormat(wav);
+        assertEquals(44_100, (int) format.getFormat().getSampleRate());
+        assertEquals(2, format.getFormat().getChannels());
     }
 
     @Test
