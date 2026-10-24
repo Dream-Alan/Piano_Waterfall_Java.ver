@@ -40,3 +40,5 @@ cp.txt
 *.mp4
 
 .idea/
+
+.devdata/

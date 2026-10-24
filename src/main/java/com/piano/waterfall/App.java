@@ -28,6 +28,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Slider;
@@ -138,11 +140,15 @@ public class App extends Application {
 
         dock = buildFloatingDock();
         StackPane.setAlignment(dock, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(dock, new Insets(0, 40, 158, 40));
+        StackPane.setMargin(dock, new Insets(0, 40, 230, 40));
 
         root = new StackPane(canvas, dock);
         root.setStyle("-fx-background-color: #07090E;");
         Scene scene = new Scene(root, width, height, Color.web("#07090E"));
+        var appCss = App.class.getResource("/voice.css");
+        if (appCss != null) {
+            scene.getStylesheets().add(appCss.toExternalForm());
+        }
 
         canvas.widthProperty().bind(scene.widthProperty());
         canvas.heightProperty().bind(scene.heightProperty());
@@ -321,13 +327,24 @@ public class App extends Application {
         speedSlider.valueProperty().addListener((obs, oldValue, newValue) ->
                 renderer.setFallSpeed(newValue.doubleValue()));
 
-        Label voiceLabel = new Label("音色");
-        voiceLabel.setStyle("-fx-text-fill: #8FA3BA; -fx-font-size: 11px;");
+        Label voiceLabel = new Label("♪ 音色");
+        voiceLabel.setStyle("-fx-text-fill: #00F0FF; -fx-font-size: 12px; -fx-font-weight: bold;");
         voiceCombo = new ComboBox<>(FXCollections.observableArrayList(PianoVoice.values()));
         voiceCombo.setValue(PianoVoice.GRAND);
-        voiceCombo.setPrefWidth(122);
-        voiceCombo.setStyle("-fx-background-color: #0D141E; -fx-text-fill: #DCE2EC;"
-                + " -fx-border-color: #1D2A3A; -fx-border-radius: 12; -fx-background-radius: 12;");
+        voiceCombo.setPrefWidth(172);
+        voiceCombo.setVisibleRowCount(4);
+        voiceCombo.setPrefHeight(32);
+        voiceCombo.setStyle("-fx-background-color: #0E2230; -fx-text-fill: #EAF6FF;"
+                + " -fx-border-color: #00F0FF; -fx-border-width: 1.4;"
+                + " -fx-border-radius: 15; -fx-background-radius: 15;"
+                + " -fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 2 8 2 10;");
+        var voiceCss = App.class.getResource("/voice.css");
+        if (voiceCss != null) {
+            voiceCombo.getStylesheets().add(voiceCss.toExternalForm());
+        }
+        voiceCombo.setButtonCell(voiceCell(true));
+        voiceCombo.setCellFactory(list -> voiceCell(false));
+        voiceCombo.setTooltip(new Tooltip("切换钢琴音色（后台采样渲染）"));
         voiceCombo.setOnAction(event -> renderSampledPiano());
 
         FlowPane controls = new FlowPane(8, 7);
@@ -336,12 +353,12 @@ public class App extends Application {
                 aiButton, audioButton, themeButton, labelButton, exportButton,
                 speedLabel, speedSlider);
 
-        Label hintLabel = new Label("T 主题 · L 标注 · M 静音MIDI · J 简谱工坊 · 右键 AI 设置 Python · E 导出");
+        Label hintLabel = new Label("T 主题 · V/L 音色/标注 · M 静音MIDI · J 简谱工坊 · 右键 AI 设置 Python · E 导出");
         hintLabel.setStyle("-fx-text-fill: #5E7188; -fx-font-size: 10px;");
 
         Region footerSpacer = new Region();
-        HBox footer = new HBox(8, footerSpacer, hintLabel, voiceLabel, voiceCombo);
-        footer.setAlignment(Pos.CENTER_RIGHT);
+        HBox footer = new HBox(8, voiceLabel, voiceCombo, footerSpacer, hintLabel);
+        footer.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
         dockBox.getChildren().addAll(progressRow, controls, footer);
@@ -370,6 +387,21 @@ public class App extends Application {
         });
         scene.setOnMouseMoved(this::handleMouseMoved);
         idleTimer.playFromStart();
+    }
+
+    private ListCell<PianoVoice> voiceCell(boolean withArrow) {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(PianoVoice item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(null);
+                Label label = new Label(empty || item == null
+                        ? "" : item.label() + (withArrow ? "  ▾" : ""));
+                label.setStyle("-fx-text-fill: #F2FBFF; -fx-font-size: 13px;"
+                        + " -fx-font-weight: bold; -fx-background-color: transparent;");
+                setGraphic(label);
+            }
+        };
     }
 
     private void handleMouseMoved(MouseEvent event) {
@@ -580,6 +612,7 @@ public class App extends Application {
                 refreshThemeButton();
             }
             case L -> renderer.toggleNoteLabels();
+            case V -> voiceCombo.getSelectionModel().selectNext();
             case M -> audioEngine.toggleMidiMute();
             case O -> chooseMidiFile();
             case J -> JianpuStudioDialog.show(stage,

@@ -1,0 +1,20 @@
+.combo-box-popup .list-view {
+    -fx-background-color: #0B1622;
+    -fx-border-color: #00F0FF;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-padding: 4;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: #0B1622;
+    -fx-text-fill: #F2FBFF;
+    -fx-font-size: 13px;
+    -fx-padding: 8 14 8 14;
+}
+
+.combo-box-popup .list-cell:hover,
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: #12384C;
+    -fx-text-fill: #FFFFFF;
+}

@@ -315,7 +315,7 @@ public final class SampledPianoEngine {
             hash = 31 * hash + cacheKey.charAt(i);
         }
         return directory.resolve("midi-" + Integer.toHexString(hash)
-                + "-" + voice.name().toLowerCase() + ".wav").toFile();
+                + "-" + voice.name().toLowerCase() + "-v3.wav").toFile();
     }
 
     private record Sample(float[] data) {

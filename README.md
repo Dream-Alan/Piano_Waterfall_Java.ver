@@ -18,7 +18,7 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 - **4 套主题**：赛博青粉、极光翠绿、鎏金琥珀、星光樱粉，按 `T` 循环切换。
 - **简谱工坊**：双轨简谱文本、调号 C–B、BPM，一键编译成 MIDI 并立即播放；支持导入 `.jianpu` 文件、导出 `.mid`。
 - **采样钢琴音色**：内置 26 个真实钢琴采样与 5 种音色（音乐会三角、明亮流行、
-  毛毡柔音、复古立式、房间混响），首次渲染后缓存，切换音色不会中断播放。
+  毛毡柔音、复古立式、房间混响），首次切换需后台渲染 1–2 秒，渲染完成后自动继承当前位置切到新音色。
 - **原曲同步**：加载 MP3 / WAV 作为主时钟，与 MIDI 音符同步；`M` 可静音 MIDI
   合成器只听原曲。
 - **AI 扒谱**：调用本地 Python 的 hFT / CRNN 转录，或 basic-pitch、
@@ -56,7 +56,7 @@ mvn org.openjfx:javafx-maven-plugin:0.0.8:run
 ```bash
 mvn -q package
 java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
-  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.0.jar;$(cat cp.txt)" \
+  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.1.jar;$(cat cp.txt)" \
   com.piano.waterfall.Launcher
 ```
 
@@ -82,7 +82,7 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 「简谱工坊」里可直接导入 `.jianpu` 文件并导出 MIDI，也可以用命令行批处理：
 
 ```bash
-java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.0.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
+java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.1.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
 ```
 
 文件格式：
@@ -143,9 +143,11 @@ pip install basic-pitch
 
 ## 音色
 
-默认使用 JDK 自带的 Gervill 合成器。把任意 `.sf2` 钢琴音色放到
-`src/main/resources/soundfont/piano.sf2`，启动时会自动加载；没有该文件时使用
-默认音色。也可以在命令行用 `piano.audio` 指定原曲，用 `piano.theme` 指定主题。
+默认使用 26 个真实钢琴采样离线渲染，底部「♪ 音色」下拉提供 5 种预设：
+音乐会三角、明亮流行、毛毡柔音、复古立式、房间混响。也可按 `V` 依次切换。
+首次切换某个音色需要 1–2 秒后台渲染，完成后自动从当前位置继续；已渲染过的
+音色会命中缓存。若采样资源缺失，则回退到 JDK 自带的 Gervill 合成器。
+把任意 `.sf2` 放到 `src/main/resources/soundfont/piano.sf2` 会在启动时加载。
 
 ## 导出 MP4
 
