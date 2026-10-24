@@ -140,7 +140,7 @@ public class App extends Application {
 
         dock = buildFloatingDock();
         StackPane.setAlignment(dock, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(dock, new Insets(0, 40, 230, 40));
+        StackPane.setMargin(dock, new Insets(0, 40, 200, 40));
 
         root = new StackPane(canvas, dock);
         root.setStyle("-fx-background-color: #07090E;");

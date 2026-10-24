@@ -42,7 +42,7 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 
 ## 下载（Windows 免安装）
 
-GitHub Releases 提供 `PianoWaterfall-windows-x64-1.3.1.zip`，解压后直接运行
+GitHub Releases 提供 `PianoWaterfall-windows-x64-1.3.2.zip`，解压后直接运行
 `PianoWaterfall.exe`。压缩包内置 Java 运行时与 26 个钢琴采样，无需安装 JDK；
 MP4 导出仍需本机 `ffmpeg`（程序会自动查找 PATH 与 WinGet 安装目录）。
 
@@ -62,7 +62,7 @@ mvn org.openjfx:javafx-maven-plugin:0.0.8:run
 ```bash
 mvn -q package
 java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
-  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.1.jar;$(cat cp.txt)" \
+  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.2.jar;$(cat cp.txt)" \
   com.piano.waterfall.Launcher
 ```
 
@@ -88,7 +88,7 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 「简谱工坊」里可直接导入 `.jianpu` 文件并导出 MIDI，也可以用命令行批处理：
 
 ```bash
-java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.1.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
+java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.3.2.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
 ```
 
 文件格式：
