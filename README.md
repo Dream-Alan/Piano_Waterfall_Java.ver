@@ -28,6 +28,11 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 - **采样缓存**：采样钢琴 WAV 缓存在 `%LOCALAPPDATA%\PianoWaterfall\java-sample-cache`，
   不可写时回退到系统临时目录。
 
+## 致谢
+
+钢琴采样来自 VSCO 2 Community Edition（经 tonejs-instruments 分发），
+授权为 CC-BY 3.0；详见 [ATTRIBUTION.md](ATTRIBUTION.md)。
+
 ## 环境
 
 - JDK 21 或更高版本（开发环境 JDK 25）。
