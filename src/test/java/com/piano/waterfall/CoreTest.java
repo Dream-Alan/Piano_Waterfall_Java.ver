@@ -8,10 +8,14 @@ import com.piano.waterfall.render.WaterfallRenderer;
 import org.junit.jupiter.api.Test;
 
 import javax.sound.midi.MetaMessage;
+import javax.sound.midi.MidiSystem;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Track;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -104,6 +108,29 @@ class CoreTest {
         assertEquals(0.5, notes.get(1).startTime(), 0.0001);
         assertEquals(1.0, notes.get(2).startTime(), 0.0001);
         assertTrue(notes.get(0).endTime() > notes.get(0).startTime());
+    }
+
+    @Test
+    void readsJianpuFileAndWritesMidi() throws Exception {
+        Path source = Files.createTempFile("piano", ".jianpu");
+        Files.writeString(source,
+                "title=Test Song\nbpm=90\nkey=G\n"
+                        + "right: 1 2 3\nleft: 1/ 5/\n");
+        ScoreCompiler.JianpuDocument document = ScoreCompiler.readJianpuFile(source);
+        assertEquals("Test Song", document.title());
+        assertEquals(90, document.bpm());
+        assertEquals(67, document.basePitch());
+        assertTrue(document.right().contains("1 2 3"));
+
+        Sequence sequence = ScoreCompiler.compileJianpu(document.bpm(),
+                document.basePitch(), document.right(), document.left());
+        File midi = Files.createTempFile("piano", ".mid").toFile();
+        ScoreCompiler.saveMidi(sequence, midi);
+        assertTrue(midi.isFile() && midi.length() > 0);
+
+        List<NoteBlock> notes = MidiParser.parseSequence(MidiSystem.getSequence(midi));
+        assertTrue(notes.size() >= 5);
+        assertTrue(notes.stream().anyMatch(note -> note.pitch() == 67));
     }
 
     @Test

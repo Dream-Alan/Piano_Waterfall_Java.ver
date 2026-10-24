@@ -23,7 +23,10 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelFormat;
@@ -37,6 +40,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -192,6 +196,14 @@ public class App extends Application {
             }
         }
 
+        String transcribeProp = System.getProperty("piano.transcribe");
+        if (transcribeProp != null && !transcribeProp.isBlank()) {
+            File transcribeFile = new File(transcribeProp);
+            if (transcribeFile.isFile()) {
+                Platform.runLater(() -> transcribeAudio(transcribeFile));
+            }
+        }
+
         setupAutoHideDock(scene);
         stage.setTitle("Piano Waterfall Java  |  " + songTitle);
         stage.setMinWidth(980);
@@ -272,6 +284,11 @@ public class App extends Application {
                 (title, seq) -> loadSequenceSafe(seq, title, null)));
         aiButton = neonButton("🤖 音频转 MIDI", "#FF2A85");
         aiButton.setOnAction(event -> chooseAudioForTranscription());
+        MenuItem pythonItem = new MenuItem("设置 Python 解释器…");
+        pythonItem.setOnAction(event -> promptPython());
+        MenuItem projectItem = new MenuItem("设置 piano_waterfall 项目目录…");
+        projectItem.setOnAction(event -> promptPythonProject());
+        aiButton.setContextMenu(new ContextMenu(pythonItem, projectItem));
         audioButton = neonButton("🎧 原曲", "#FFB800");
         audioButton.setOnAction(event -> toggleExternalAudio());
         themeButton = neonButton("🎨 赛博青粉", "#DCE2EC");
@@ -302,7 +319,7 @@ public class App extends Application {
                 aiButton, audioButton, themeButton, labelButton, exportButton,
                 speedLabel, speedSlider);
 
-        Label hintLabel = new Label("T 主题 · L 标注 · M 静音MIDI · J 简谱工坊 · E 导出");
+        Label hintLabel = new Label("T 主题 · L 标注 · M 静音MIDI · J 简谱工坊 · 右键 AI 设置 Python · E 导出");
         hintLabel.setStyle("-fx-text-fill: #5E7188; -fx-font-size: 10px;");
 
         HBox footer = new HBox(10, new Label(""), hintLabel);
@@ -541,6 +558,31 @@ public class App extends Application {
         }
     }
 
+    private void promptPython() {
+        TextInputDialog dialog = new TextInputDialog(AudioTranscriber.currentPython());
+        dialog.setTitle("AI 转录设置");
+        dialog.setHeaderText("Python 解释器");
+        dialog.setContentText("路径（需安装 piano-waterfall 或设置项目目录）：");
+        dialog.showAndWait().ifPresent(value -> {
+            AudioTranscriber.setPythonExecutable(value);
+            showDock();
+        });
+    }
+
+    private void promptPythonProject() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("选择 piano_waterfall 项目根目录");
+        File initial = new File(AudioTranscriber.currentPythonProject());
+        if (initial.isDirectory()) {
+            chooser.setInitialDirectory(initial);
+        }
+        File selected = chooser.showDialog(stage);
+        if (selected != null) {
+            AudioTranscriber.setPythonProject(selected.getAbsolutePath());
+            showDock();
+        }
+    }
+
     private void transcribeAudio(File audioFile) {
         aiButton.setText("🤖 扒谱中…");
         aiButton.setDisable(true);
@@ -552,6 +594,8 @@ public class App extends Application {
                     try {
                         Sequence loaded = MidiSystem.getSequence(midi);
                         loadSequence(loaded, audioFile.getName() + " [AI]", audioFile);
+                        audioEngine.togglePause();
+                        refreshPlayButton();
                         showDock();
                     } catch (Exception exception) {
                         showError("AI 扒谱完成但无法加载 MIDI", exception);

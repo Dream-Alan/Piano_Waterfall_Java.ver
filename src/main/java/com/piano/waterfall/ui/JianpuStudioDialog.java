@@ -13,11 +13,15 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import javax.sound.midi.Sequence;
+import java.io.File;
+import java.nio.file.Path;
 import java.util.function.BiConsumer;
 
 /**
@@ -107,7 +111,68 @@ public final class JianpuStudioDialog {
             }
         });
 
-        HBox bottom = new HBox(compile);
+        Button importButton = new Button("📥 导入简谱文件");
+        importButton.setStyle(secondaryButtonStyle());
+        importButton.setOnAction(event -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("选择简谱文件");
+            chooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("简谱文件", "*.txt", "*.jianpu", "*.jp"),
+                    new FileChooser.ExtensionFilter("所有文件", "*.*"));
+            File file = chooser.showOpenDialog(dialog);
+            if (file == null) {
+                return;
+            }
+            try {
+                ScoreCompiler.JianpuDocument document =
+                        ScoreCompiler.readJianpuFile(Path.of(file.getAbsolutePath()));
+                titleField.setText(document.title());
+                bpmSpinner.getValueFactory().setValue(document.bpm());
+                rightArea.setText(document.right());
+                leftArea.setText(document.left());
+                keySelect.getItems().stream()
+                        .filter(item -> item.endsWith("(" + document.basePitch() + ")"))
+                        .findFirst()
+                        .ifPresent(keySelect::setValue);
+                savedRightHand = document.right();
+                savedLeftHand = document.left();
+            } catch (Exception exception) {
+                Alert alert = new Alert(Alert.AlertType.ERROR,
+                        "读取简谱失败: " + exception.getMessage());
+                alert.setHeaderText("无法读取简谱文件");
+                alert.showAndWait();
+            }
+        });
+
+        Button exportButton = new Button("💾 导出 MIDI");
+        exportButton.setStyle(secondaryButtonStyle());
+        exportButton.setOnAction(event -> {
+            try {
+                int basePitch = Integer.parseInt(
+                        keySelect.getValue().replaceAll("[^0-9]", ""));
+                Sequence sequence = ScoreCompiler.compileJianpu(
+                        bpmSpinner.getValue(), basePitch, rightArea.getText(), leftArea.getText());
+                FileChooser saver = new FileChooser();
+                saver.setTitle("导出 MIDI");
+                saver.setInitialFileName(titleField.getText().isBlank()
+                        ? "jianpu.mid" : titleField.getText().trim() + ".mid");
+                saver.getExtensionFilters().add(
+                        new FileChooser.ExtensionFilter("MIDI 文件", "*.mid"));
+                File output = saver.showSaveDialog(dialog);
+                if (output != null) {
+                    ScoreCompiler.saveMidi(sequence, output);
+                }
+            } catch (Exception exception) {
+                Alert alert = new Alert(Alert.AlertType.ERROR,
+                        "导出 MIDI 失败: " + exception.getMessage());
+                alert.setHeaderText("无法导出 MIDI");
+                alert.showAndWait();
+            }
+        });
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox bottom = new HBox(10, importButton, exportButton, spacer, compile);
         bottom.setAlignment(Pos.CENTER_RIGHT);
         VBox.setVgrow(rightArea, Priority.ALWAYS);
         VBox.setVgrow(leftArea, Priority.ALWAYS);
@@ -126,6 +191,12 @@ public final class JianpuStudioDialog {
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: #DCE2EC; -fx-font-weight: bold; -fx-font-size: 12px;");
         return label;
+    }
+
+    private static String secondaryButtonStyle() {
+        return "-fx-background-color: #141B2A; -fx-text-fill: #DCE2EC;"
+                + "-fx-border-color: #2A344B; -fx-border-radius: 8; -fx-background-radius: 8;"
+                + "-fx-padding: 8 14; -fx-cursor: hand;";
     }
 
     private static String inputStyle(String accent) {

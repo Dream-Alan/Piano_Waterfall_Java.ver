@@ -16,7 +16,7 @@ JavaFX 桌面版钢琴瀑布流（Synthesia 风格）。MIDI 会被解析成带�
 - **底部悬浮控制坞**：播放 / 暂停、可拖动进度条、重播、打开 MIDI、简谱工坊、
   音频转 MIDI、原曲、主题、标注、导出 MP4、下落速度；鼠标静止 3 秒自动淡出。
 - **4 套主题**：赛博青粉、极光翠绿、鎏金琥珀、星光樱粉，按 `T` 循环切换。
-- **简谱工坊**：双轨简谱文本、调号 C–B、BPM，一键编译成 MIDI 并立即播放。
+- **简谱工坊**：双轨简谱文本、调号 C–B、BPM，一键编译成 MIDI 并立即播放；支持导入 `.jianpu` 文件、导出 `.mid`。
 - **原曲同步**：加载 MP3 / WAV 作为主时钟，与 MIDI 音符同步；`M` 可静音 MIDI
   合成器只听原曲。
 - **AI 扒谱**：调用本地 Python 的 hFT / CRNN 转录，或 basic-pitch、
@@ -46,7 +46,7 @@ mvn org.openjfx:javafx-maven-plugin:0.0.8:run
 ```bash
 mvn -q package
 java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
-  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.1.0.jar;$(cat cp.txt)" \
+  -cp "target/classes;target/Piano_Waterfall_Java.ver-1.2.0.jar;$(cat cp.txt)" \
   com.piano.waterfall.Launcher
 ```
 
@@ -67,6 +67,29 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 | `E` | 导出 60 FPS MP4 |
 | `F11` | 全屏切换 |
 
+## 简谱文件转 MIDI
+
+「简谱工坊」里可直接导入 `.jianpu` 文件并导出 MIDI，也可以用命令行批处理：
+
+```bash
+java -cp "target/classes;target/Piano_Waterfall_Java.ver-1.2.0.jar;$(cat cp.txt)"   com.piano.waterfall.Launcher --jianpu test.jianpu --out test.mid
+```
+
+文件格式：
+
+```text
+title=小星星
+bpm=96
+key=C
+right: 1 1 5 5 6 6 5- 4 4 3 3 2 2 1-
+left: 1/ 5/ 1/ 5/ 4/ 1/ 4/ 1/
+```
+
+`title/bpm/key/base` 可选；`right:` 与 `left:` 是两条轨道。音高 `1–7`，`0`
+为休止；`+ / -` 升降八度，`# / b` 升降半音；`/` 减半、`~` 延长一拍、
+`.` 附点。
+
+
 ## 主题
 
 | 主题 | 主色 | 次色 |
@@ -84,11 +107,16 @@ java --add-opens=java.desktop/com.sun.media.sound=ALL-UNNAMED \
 2. `basic-pitch` 命令行；
 3. `piano_transcription_inference`。
 
-若 Python 不在默认 PATH，可指定解释器：
+若 Python 不在默认 PATH，可在「音频转 MIDI」按钮上右键 →「设置 Python 解释器…」，
+或启动时指定：
 
 ```bash
-java -Dpiano.python="C:/path/to/.venv/Scripts/python.exe" ...
+java -Dpiano.python="C:/path/to/.venv/Scripts/python.exe"   -Dpiano.pythonProject="C:/path/to/Piano Waterfall Layout" ...
 ```
+
+`piano.pythonProject` 会把项目的 `src` 加入 `PYTHONPATH`，适合尚未
+`pip install -e .` 的环境；受限环境可用 `-Dpiano.dataDir=<可写目录>` 指定
+转录缓存目录。
 
 Python 端安装示例（在 Python 项目根目录）：
 
@@ -131,6 +159,9 @@ pip install basic-pitch
 | `-Dpiano.snapshot=out.png` | 启动 12 秒后保存整窗截图并退出（CI/文档） |
 | `-Dpiano.export=out.mp4` | 启动 2 秒后自动导出并退出（需要 ffmpeg） |
 | `-Dpiano.python=python.exe` | AI 扒谱使用的 Python 解释器 |
+| `-Dpiano.pythonProject=path` | `piano_waterfall` 项目根目录（加入 `PYTHONPATH`） |
+| `-Dpiano.dataDir=path` | 转录/模型缓存目录（覆盖 `PIANO_WATERFALL_DATA_DIR`） |
+| `-Dpiano.transcribe=audio.wav` | 启动时自动执行一次 AI 扒谱 |
 
 ## 项目结构
 

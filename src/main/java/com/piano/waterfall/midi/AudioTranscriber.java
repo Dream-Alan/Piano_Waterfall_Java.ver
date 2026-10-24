@@ -7,8 +7,11 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -23,6 +26,7 @@ import java.util.function.Consumer;
 public final class AudioTranscriber {
 
     private static final long TIMEOUT_MINUTES = 12;
+    private static String cachedPython;
 
     private AudioTranscriber() {
     }
@@ -108,6 +112,19 @@ public final class AudioTranscriber {
         try {
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true);
+            String dataDir = System.getProperty("piano.dataDir");
+            if (dataDir != null && !dataDir.isBlank()) {
+                builder.environment().put("PIANO_WATERFALL_DATA_DIR", dataDir);
+            }
+            String pythonProject = System.getProperty("piano.pythonProject");
+            if (pythonProject != null && !pythonProject.isBlank()) {
+                Path src = Path.of(pythonProject, "src");
+                if (Files.isDirectory(src)) {
+                    String old = builder.environment().get("PYTHONPATH");
+                    builder.environment().put("PYTHONPATH",
+                            old == null || old.isBlank() ? src.toString() : src + File.pathSeparator + old);
+                }
+            }
             process = builder.start();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -142,11 +159,107 @@ public final class AudioTranscriber {
     }
 
     private static String pythonExecutable() {
+        if (cachedPython != null) {
+            return cachedPython;
+        }
         String configured = System.getProperty("piano.python");
         if (configured == null || configured.isBlank()) {
             configured = System.getenv("PIANO_PYTHON");
         }
-        return (configured == null || configured.isBlank()) ? "python" : configured;
+        if (configured != null && !configured.isBlank()) {
+            cachedPython = configured.trim();
+            return cachedPython;
+        }
+        List<String> candidates = pythonCandidates();
+        String firstWorking = null;
+        for (String candidate : candidates) {
+            if (!canRun(candidate)) {
+                continue;
+            }
+            if (firstWorking == null) {
+                firstWorking = candidate;
+            }
+            if (hasPianoWaterfall(candidate)) {
+                cachedPython = candidate;
+                return cachedPython;
+            }
+        }
+        cachedPython = firstWorking == null ? "python" : firstWorking;
+        return cachedPython;
+    }
+
+    private static List<String> pythonCandidates() {
+        Set<String> candidates = new LinkedHashSet<>();
+        candidates.add("python");
+        candidates.add("python3");
+        candidates.add("py");
+        Path current = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath();
+        for (int depth = 0; depth < 5 && current != null; depth++) {
+            addVenv(candidates, current.resolve(".venv"));
+            addVenv(candidates, current.resolve("venv"));
+            current = current.getParent();
+        }
+        return new ArrayList<>(candidates);
+    }
+
+    private static void addVenv(Set<String> candidates, Path venv) {
+        Path windows = venv.resolve("Scripts").resolve("python.exe");
+        if (Files.isRegularFile(windows)) {
+            candidates.add(windows.toString());
+        }
+        Path unix = venv.resolve("bin").resolve("python");
+        if (Files.isRegularFile(unix)) {
+            candidates.add(unix.toString());
+        }
+    }
+
+    private static boolean canRun(String executable) {
+        return probe(executable, "import sys; print(sys.version_info[:2])");
+    }
+
+    private static boolean hasPianoWaterfall(String executable) {
+        return probe(executable, "import piano_waterfall, piano_waterfall.transcribe");
+    }
+
+    private static boolean probe(String executable, String code) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(executable, "-c", code);
+            builder.redirectErrorStream(true);
+            builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+            Process process = builder.start();
+            boolean finished = process.waitFor(8, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return false;
+            }
+            return process.exitValue() == 0;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    public static String currentPython() {
+        return pythonExecutable();
+    }
+
+    public static void setPythonExecutable(String executable) {
+        if (executable == null || executable.isBlank()) {
+            return;
+        }
+        cachedPython = executable.trim();
+        System.setProperty("piano.python", cachedPython);
+    }
+
+    public static String currentPythonProject() {
+        return System.getProperty("piano.pythonProject", "");
+    }
+
+    public static void setPythonProject(String project) {
+        if (project == null || project.isBlank()) {
+            System.clearProperty("piano.pythonProject");
+        } else {
+            System.setProperty("piano.pythonProject", project.trim());
+        }
     }
 
     private static String escape(String value) {
